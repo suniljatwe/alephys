@@ -1,0 +1,4 @@
+INDEX VERSION 1.134+F:\alephys\.metadata\.plugins\org.eclipse.jdt.core
+2351559641.index
+1865797976.index
+2122617232.index

@@ -1,0 +1,252 @@
+package alephys;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.stream.Collectors;
+
+public class ExpenseTracker {
+	private List<Transaction> transactions = new ArrayList<>();
+    private Scanner scanner = new Scanner(System.in);
+
+    // Categories configuration
+    private final Map<String, List<String>> categories = Map.of(
+            "Income", List.of("Salary", "Business", "Freelance", "Investments", "Other"),
+            "Expense", List.of("Food", "Rent", "Travel", "Utilities", "Entertainment", "Other")
+    );
+
+    public void run() {
+        System.out.println("Welcome to Expense Tracker!");
+
+        while (true) {
+            System.out.println("\nMain Menu:");
+            System.out.println("1. Add Transaction");
+            System.out.println("2. View Monthly Summary");
+            System.out.println("3. Load Transactions from File");
+            System.out.println("4. Save Transactions to File");
+            System.out.println("5. Exit");
+            System.out.print("Enter your choice: ");
+
+            int choice;
+            try {
+                choice = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number.");
+                continue;
+            }
+
+            switch (choice) {
+                case 1:
+                    addTransaction();
+                    break;
+                case 2:
+                    showMonthlySummary();
+                    break;
+                case 3:
+                    loadFromFile();
+                    break;
+                case 4:
+                    saveToFile();
+                    break;
+                case 5:
+                    System.out.println("Thank you for using Expense Tracker!");
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    private void addTransaction() {
+        System.out.println("\nAdd New Transaction");
+
+        // Select transaction type
+        String type = selectType();
+        if (type == null) return;
+
+        // Select category
+        String category = selectCategory(type);
+        if (category == null) return;
+
+        // Enter amount
+        System.out.print("Enter amount: ");
+        double amount;
+        try {
+            amount = Double.parseDouble(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid amount. Transaction cancelled.");
+            return;
+        }
+
+        // Enter description
+        System.out.print("Enter description (optional): ");
+        String description = scanner.nextLine();
+
+        // Create and add transaction
+        Transaction transaction = new Transaction(
+                LocalDate.now(),
+                type,
+                type.equals("Income") ? "Income" : "Expense",
+                category,
+                amount,
+                description
+        );
+        transactions.add(transaction);
+
+        System.out.println("Transaction added successfully!");
+    }
+
+    private String selectType() {
+        System.out.println("Select Transaction Type:");
+        System.out.println("1. Income");
+        System.out.println("2. Expense");
+        System.out.print("Enter your choice (or 0 to cancel): ");
+
+        int choice;
+        try {
+            choice = Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid choice. Transaction cancelled.");
+            return null;
+        }
+
+        switch (choice) {
+            case 0: return null;
+            case 1: return "Income";
+            case 2: return "Expense";
+            default:
+                System.out.println("Invalid choice. Transaction cancelled.");
+                return null;
+        }
+    }
+
+    private String selectCategory(String type) {
+        List<String> categoryList = categories.get(type);
+        System.out.println("\nSelect " + type + " Category:");
+
+        for (int i = 0; i < categoryList.size(); i++) {
+            System.out.println((i + 1) + ". " + categoryList.get(i));
+        }
+        System.out.print("Enter your choice (or 0 to cancel): ");
+
+        int choice;
+        try {
+            choice = Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid choice. Transaction cancelled.");
+            return null;
+        }
+
+        if (choice == 0) return null;
+        if (choice < 1 || choice > categoryList.size()) {
+            System.out.println("Invalid choice. Transaction cancelled.");
+            return null;
+        }
+
+        return categoryList.get(choice - 1);
+    }
+
+    private void showMonthlySummary() {
+        if (transactions.isEmpty()) {
+            System.out.println("No transactions to display.");
+            return;
+        }
+
+        System.out.println("\nMonthly Summary");
+
+        Map<String, List<Transaction>> monthlyTransactions = transactions.stream()
+                .collect(Collectors.groupingBy(t -> t.getYear() + "-" + String.format("%02d", t.getMonth())));
+
+        List<String> sortedMonths = new ArrayList<>(monthlyTransactions.keySet());
+        Collections.sort(sortedMonths);
+
+        for (String monthYear : sortedMonths) {
+            List<Transaction> monthTransactions = monthlyTransactions.get(monthYear);
+            double totalIncome = monthTransactions.stream()
+                    .filter(t -> t.getType().equals("Income"))
+                    .mapToDouble(Transaction::getAmount)
+                    .sum();
+            double totalExpense = monthTransactions.stream()
+                    .filter(t -> t.getType().equals("Expense"))
+                    .mapToDouble(Transaction::getAmount)
+                    .sum();
+            double balance = totalIncome - totalExpense;
+
+            System.out.println("\nMonth: " + monthYear);
+            System.out.println("Total Income: " + String.format("%.2f", totalIncome));
+            System.out.println("Total Expense: " + String.format("%.2f", totalExpense));
+            System.out.println("Balance: " + String.format("%.2f", balance));
+
+            System.out.println("\nIncome Breakdown:");
+            showCategoryBreakdown(monthTransactions, "Income");
+
+            System.out.println("\nExpense Breakdown:");
+            showCategoryBreakdown(monthTransactions, "Expense");
+        }
+    }
+
+    private void showCategoryBreakdown(List<Transaction> transactions, String type) {
+        Map<String, Double> categoryTotals = transactions.stream()
+                .filter(t -> t.getType().equals(type))
+                .collect(Collectors.groupingBy(
+                        Transaction::getSubCategory,
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
+
+        if (categoryTotals.isEmpty()) {
+            System.out.println("  No " + type + " transactions.");
+            return;
+        }
+
+        categoryTotals.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> System.out.println("  " + entry.getKey() + ": " + String.format("%.2f", entry.getValue())));
+    }
+
+    private void saveToFile() {
+        System.out.print("Enter filename to save transactions: ");
+        String filename = scanner.nextLine();
+
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
+            for (Transaction t : transactions) {
+                writer.println(t.toString());
+            }
+            System.out.println("Transactions saved successfully to " + filename);
+        } catch (IOException e) {
+            System.out.println("Error saving file: " + e.getMessage());
+        }
+    }
+
+    private void loadFromFile() {
+        System.out.print("Enter filename to load transactions: ");
+        String filename = scanner.nextLine();
+
+        List<Transaction> loadedTransactions = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                try {
+                    loadedTransactions.add(Transaction.fromString(line));
+                } catch (Exception e) {
+                    System.out.println("Skipping invalid line: " + line);
+                }
+            }
+            transactions.addAll(loadedTransactions);
+            System.out.println("Successfully loaded " + loadedTransactions.size() + " transactions from " + filename);
+        } catch (IOException e) {
+            System.out.println("Error loading file: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        new ExpenseTracker().run();
+    }
+}

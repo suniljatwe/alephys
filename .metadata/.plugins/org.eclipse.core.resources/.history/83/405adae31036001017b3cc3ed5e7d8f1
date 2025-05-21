@@ -1,0 +1,67 @@
+/**
+ * 
+ */
+package alephys;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+public class Transaction {
+	private LocalDate date;
+	private String type; // "Income" or "Expense"
+	private String category;
+	private String subCategory;
+	private double amount;
+	private String description;
+
+	public Transaction(LocalDate date, String type, String category, String subCategory, double amount,
+			String description) {
+		this.date = date;
+		this.type = type;
+		this.category = category;
+		this.subCategory = subCategory;
+		this.amount = amount;
+		this.description = description;
+	}
+
+	public LocalDate getDate() {
+		return date;
+	}
+
+	public String getType() {
+		return type;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public String getSubCategory() {
+		return subCategory;
+	}
+
+	public double getAmount() {
+		return amount;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	@Override
+	public String toString() {
+		return String.join(",", date.format(DateTimeFormatter.ISO_DATE), type, category, subCategory,
+				String.valueOf(amount), description);
+	}
+
+	public static Transaction fromString(String str) {
+		String[] parts = str.split(",");
+		LocalDate date = LocalDate.parse(parts[0], DateTimeFormatter.ISO_DATE);
+		return new Transaction(date, parts[1], parts[2], parts[3], Double.parseDouble(parts[4]),
+				parts.length > 5 ? parts[5] : "");
+	}
+
+	public int getYear() {
+		return date.getYear();
+	}
+}
